@@ -4,16 +4,15 @@
 
 package kotlinx.serialization.features
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.StringData
+import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.test.assertFailsWithMessage
-import org.junit.Ignore
 import org.junit.Test
 import java.io.*
-import kotlin.test.assertEquals
+import kotlin.test.*
 
 class JsonStreamFlowTest {
     val json = Json {}
@@ -23,6 +22,14 @@ class JsonStreamFlowTest {
             json.encodeToStream(it, os)
         }
     }
+
+    suspend inline fun <reified T> Json.readFromStream(iss: InputStream): Flow<T> = flow {
+        val iter = iterateOverStream(iss)
+        val serial = serializer<T>()
+        while (iter.hasNext()) {
+            emit(iter.next(serial))
+        }
+    }.flowOn(Dispatchers.IO)
 
     val inputString = """{"data":"a"}{"data":"b"}{"data":"c"}"""
     val inputList = listOf(StringData("a"), StringData("b"), StringData("c"))
@@ -47,5 +54,57 @@ class JsonStreamFlowTest {
         }
     }
 
+    inline fun <reified T> JsonIterator.assertNext(expected: T) {
+        assertTrue(hasNext())
+        assertEquals(expected, next(serializer()))
+    }
+
+    @Test
+    fun testIterateSeveralItems() {
+
+        val ins = ByteArrayInputStream(inputString.encodeToByteArray())
+        val iter = json.iterateOverStream(ins)
+        iter.assertNext(StringData("a"))
+        iter.assertNext(StringData("b"))
+        iter.assertNext(StringData("c"))
+        assertFalse(iter.hasNext())
+        assertFailsWithMessage<SerializationException>("EOF") {
+            iter.next(StringData.serializer())
+        }
+    }
+
+    @Test
+    fun testDecodeToSequence() {
+        val ins = ByteArrayInputStream(inputString.encodeToByteArray())
+        assertEquals(inputList, json.decodeToSequence(ins, StringData.serializer()).toList())
+    }
+
+    @Test
+    fun testDecodeAsFlow() {
+        val ins = ByteArrayInputStream(inputString.encodeToByteArray())
+        val list = runBlocking {
+            buildList { json.readFromStream<StringData>(ins).toCollection(this) }
+        }
+        assertEquals(inputList, list)
+    }
+
+    @Test
+    fun testDecodeDifferentItems() {
+        val input = """{"data":"a"}{"intV":10}null{"data":"b"}"""
+        val ins = ByteArrayInputStream(input.encodeToByteArray())
+        val iter = json.iterateOverStream(ins)
+        iter.assertNext(StringData("a"))
+        iter.assertNext(IntData(10))
+        iter.assertNext<String?>(null)
+        iter.assertNext(StringData("b"))
+        assertFalse(iter.hasNext())
+    }
+
+    @Test
+    fun testItemsSeparatedByWs() {
+        val input = "{\"data\":\"a\"}   {\"data\":\"b\"}\n\t{\"data\":\"c\"}"
+        val ins = ByteArrayInputStream(input.encodeToByteArray())
+        assertEquals(inputList, json.decodeToSequence(ins, StringData.serializer()).toList())
+    }
 
 }

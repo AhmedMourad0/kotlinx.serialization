@@ -139,6 +139,8 @@ internal abstract class AbstractJsonLexer {
 
     open fun ensureHaveChars() {}
 
+    fun isNotEof(): Boolean = definitelyNotEof(currentPosition) != -1
+
     // Used as bound check in loops
     abstract fun definitelyNotEof(position: Int): Int
 

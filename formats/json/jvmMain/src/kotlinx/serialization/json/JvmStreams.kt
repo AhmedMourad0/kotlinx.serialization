@@ -80,3 +80,39 @@ public fun <T> Json.decodeFromStream(
 @ExperimentalSerializationApi
 public inline fun <reified T> Json.decodeFromStream(stream: InputStream): T =
     decodeFromStream(serializersModule.serializer(), stream)
+
+public sealed interface JsonIterator {
+    public fun <T> next(deserializer: DeserializationStrategy<T>): T
+
+    public fun hasNext(): Boolean
+}
+
+public fun <T> JsonIterator.asIterator(deserializer: DeserializationStrategy<T>): Iterator<T> =
+    object : Iterator<T> {
+        override fun hasNext(): Boolean = this@asIterator.hasNext()
+
+        override fun next(): T = this@asIterator.next(deserializer)
+    }
+
+public fun <T> JsonIterator.asSequence(deserializer: DeserializationStrategy<T>): Sequence<T> = asIterator(deserializer).asSequence()
+
+public fun Json.iterateOverStream(stream: InputStream): JsonIterator {
+    val lexer = ReaderJsonLexer(stream)
+    return JsonIteratorImpl(this, lexer)
+}
+
+public fun <T> Json.decodeToSequence(stream: InputStream, deserializer: DeserializationStrategy<T>): Sequence<T> =
+    Sequence { iterateOverStream(stream).asIterator(deserializer) }.constrainOnce() // or just iterateOverStream().asSequence(deserializer)
+
+
+
+
+
+internal class JsonIteratorImpl(private val json: Json, private val lexer: ReaderJsonLexer): JsonIterator {
+    override fun <T> next(deserializer: DeserializationStrategy<T>): T {
+        val input = StreamingJsonDecoder(json, WriteMode.OBJ, lexer, deserializer.descriptor)
+        return input.decodeSerializableValue(deserializer)
+    }
+
+    override fun hasNext(): Boolean = lexer.isNotEof()
+}
