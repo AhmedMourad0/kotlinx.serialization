@@ -216,6 +216,11 @@ public final class kotlinx/serialization/json/JsonEncoder$DefaultImpls {
 	public static fun shouldEncodeElementDefault (Lkotlinx/serialization/json/JsonEncoder;Lkotlinx/serialization/descriptors/SerialDescriptor;I)Z
 }
 
+public abstract interface class kotlinx/serialization/json/JsonIterator {
+	public abstract fun hasNext ()Z
+	public abstract fun next (Lkotlinx/serialization/DeserializationStrategy;)Ljava/lang/Object;
+}
+
 public final class kotlinx/serialization/json/JsonKt {
 	public static final fun Json (Lkotlinx/serialization/json/Json;Lkotlin/jvm/functions/Function1;)Lkotlinx/serialization/json/Json;
 	public static synthetic fun Json$default (Lkotlinx/serialization/json/Json;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lkotlinx/serialization/json/Json;
@@ -341,7 +346,11 @@ public abstract class kotlinx/serialization/json/JsonTransformingSerializer : ko
 }
 
 public final class kotlinx/serialization/json/JvmStreamsKt {
+	public static final fun asIterator (Lkotlinx/serialization/json/JsonIterator;Lkotlinx/serialization/DeserializationStrategy;)Ljava/util/Iterator;
+	public static final fun asSequence (Lkotlinx/serialization/json/JsonIterator;Lkotlinx/serialization/DeserializationStrategy;)Lkotlin/sequences/Sequence;
 	public static final fun decodeFromStream (Lkotlinx/serialization/json/Json;Lkotlinx/serialization/DeserializationStrategy;Ljava/io/InputStream;)Ljava/lang/Object;
+	public static final fun decodeToSequence (Lkotlinx/serialization/json/Json;Ljava/io/InputStream;Lkotlinx/serialization/DeserializationStrategy;)Lkotlin/sequences/Sequence;
 	public static final fun encodeToStream (Lkotlinx/serialization/json/Json;Lkotlinx/serialization/SerializationStrategy;Ljava/lang/Object;Ljava/io/OutputStream;)V
+	public static final fun iterateOverStream (Lkotlinx/serialization/json/Json;Ljava/io/InputStream;)Lkotlinx/serialization/json/JsonIterator;
 }
 
